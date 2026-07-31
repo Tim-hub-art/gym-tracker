@@ -15,6 +15,34 @@ h1 {
   text-align: center;
 }
 
+.app-header {
+  position: relative;
+}
+
+.theme-toggle {
+  align-items: center;
+  background: #2c2c2c;
+  border: 1px solid #555;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 18px;
+  height: 36px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 16px;
+  width: 36px;
+}
+
+.light-theme .theme-toggle {
+  background: #ffffff;
+  color: #222;
+}
+
 ul {
   list-style: none;
   padding: 0;
@@ -49,7 +77,322 @@ li {
 
 .card {
   background: #1f1f1f;
-  padding: 20px;
+  padding: 16px;
   margin-bottom: 20px;
   border-radius: 12px;
+}
+
+.workout-card {
+  background: #2d2d2d;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 15px;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.workout-title {
+  margin: 0;
+}
+
+.machine-number {
+  color: #bfbfbf;
+}
+
+.workout-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.workout-card.completed {
+  background: #1f3b29;
+  border: 2px solid #35c759;
+}
+
+.completed-label {
+  color: #6ee787;
+  font-weight: bold;
+  margin: 8px 0 0;
+}
+
+.finish-workout-button {
+  background: #35c759;
+  border: none;
+  border-radius: 8px;
+  color: #07150b;
+  cursor: pointer;
+  font-weight: bold;
+  margin-left: 10px;
+  padding: 10px 18px;
+}
+
+.history-button {
+  background: #2c2c2c;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  margin: 0 0 20px 10px;
+  padding: 10px 18px;
+}
+
+.history-card {
+  background: #1f1f1f;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  text-align: left;
+}
+
+.history-card h3 {
+  margin-top: 0;
+}
+
+.history-date {
+  color: #bfbfbf;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.history-date-group {
+  margin-bottom: 12px;
+}
+
+.history-date-button {
+  background: #2c2c2c;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  text-align: left;
+  width: 100%;
+}
+
+.history-card-heading {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.delete-history-button {
+  background: #55252a;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+}
+
+.top-navigation,
+.template-section,
+.workout-actions {
+  margin: 16px 0;
+}
+
+.template-section,
+.chart {
+  background: #1f1f1f;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.template-section h3 {
+  margin: 0 0 8px;
+}
+
+.reset-workout-button {
+  background: #55252a;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  padding: 10px 18px;
+}
+
+.save-button {
+  background: #35c759;
+  border: none;
+  border-radius: 8px;
+  color: #07150b;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.set-editor {
+  border-top: 1px solid #444;
+  margin-top: 14px;
+  padding-top: 10px;
+}
+
+.weight-form {
+  text-align: left;
+}
+
+.weight-form label,
+.weight-form input {
+  display: block;
+}
+
+.measurement-row {
+  background: #1f1f1f;
+  border-radius: 8px;
+  margin: 8px 0;
+  padding: 10px;
+}
+
+.chart {
+  margin: 20px 0;
+  padding: 16px;
+}
+
+.chart svg {
+  display: block;
+  max-width: 100%;
+}
+
+.chart-axis {
+  stroke: #777;
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke: #6ee787;
+  stroke-width: 3;
+}
+
+.chart-dot {
+  fill: #6ee787;
+}
+
+.chart-label {
+  fill: #bfbfbf;
+  font-size: 13px;
+}
+
+.chart-empty {
+  color: #bfbfbf;
+}
+
+.exercise-switcher {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.exercise-switcher select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.template-row {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.exercise-details,
+.personal-record-card {
+  background: #1f1f1f;
+  border-radius: 12px;
+  margin: 16px 0;
+  padding: 16px;
+}
+
+.exercise-details summary {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.exercise-notes textarea {
+  box-sizing: border-box;
+  display: block;
+  margin: 8px 0;
+  min-height: 80px;
+  padding: 8px;
+  width: 100%;
+}
+
+.light-theme {
+  background: #f7f7f7;
+  color: #171717;
+}
+
+.light-theme .card,
+.light-theme .workout-card,
+.light-theme .template-section,
+.light-theme .chart,
+.light-theme .history-card,
+.light-theme .exercise-details,
+.light-theme .personal-record-card,
+.light-theme .measurement-row {
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+}
+
+.light-theme .machine-number,
+.light-theme .history-date,
+.light-theme .chart-empty {
+  color: #555;
+}
+
+.light-theme h1,
+.light-theme h2,
+.light-theme h3,
+.light-theme h4 {
+  color: #171717;
+}
+
+.light-theme .chart-label {
+  fill: #444;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  margin: 4px;
+  padding: 10px 14px;
+}
+
+input,
+select {
+  border: 1px solid #555;
+  border-radius: 6px;
+  margin: 4px 8px 12px 4px;
+  padding: 8px;
+}
+
+@media (max-width: 600px) {
+  #root {
+    padding: 16px;
+  }
+
+  .workout-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workout-buttons {
+    justify-content: flex-start;
+    margin: 12px 0 0;
+    width: 100%;
+  }
+
+  .workout-buttons button {
+    flex: 1;
+  }
+
+  .finish-workout-button,
+  .history-button {
+    margin-left: 0;
+  }
 }

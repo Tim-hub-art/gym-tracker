@@ -1,3 +1,9 @@
+function createEmptySet(exercise) {
+  return exercise.tracking === "cardio"
+    ? { duration: "", distance: "" }
+    : { weight: "", reps: "" };
+}
+
 function ExerciseCard({
   workout,
   exercise,
@@ -5,18 +11,29 @@ function ExerciseCard({
   current,
   updateCurrentExercise,
   saveExercise,
+  completeExercise,
 }) {
+  const isCardio = exercise.tracking === "cardio";
+
+  function updateSet(index, field, value) {
+    const newSets = current.sets.map((set, setIndex) =>
+      setIndex === index ? { ...set, [field]: value } : set
+    );
+    updateCurrentExercise(workout, exercise.name, newSets);
+  }
+
   return (
     <div className="card">
-      <h3>{exercise}</h3>
+      <h3>{exercise.name}</h3>
 
       <div>
         <h4>Last Workout</h4>
-
         {previous.sets?.length ? (
           previous.sets.map((set, index) => (
             <p key={index}>
-              Set {index + 1}: {set.weight} kg × {set.reps}
+              Set {index + 1}: {isCardio
+                ? `${set.duration} min${set.distance ? ` · ${set.distance} km` : ""}`
+                : `${set.weight} kg × ${set.reps}`}
             </p>
           ))
         ) : (
@@ -25,83 +42,99 @@ function ExerciseCard({
       </div>
 
       {current.sets.map((set, index) => (
-        <div key={index}>
-          <h4>Set {index + 1}</h4>
+        <div className="set-editor" key={index}>
+          <h4>{isCardio ? "Activity" : `Set ${index + 1}`}</h4>
 
-          <label>Weight (kg)</label>
-
-          <input
-            type="number"
-            value={set.weight}
-            onChange={(e) => {
-              const newSets = [...current.sets];
-              newSets[index].weight = e.target.value;
-
-              updateCurrentExercise(workout, exercise, newSets);
-            }}
-          />
-
-          <label>Reps</label>
-
-          <input
-            type="number"
-            value={set.reps}
-            onChange={(e) => {
-              const newSets = [...current.sets];
-              newSets[index].reps = e.target.value;
-
-              updateCurrentExercise(workout, exercise, newSets);
-            }}
-          />
+          {isCardio ? (
+            <>
+              <label htmlFor={`duration-${index}`}>Duration (minutes)</label>
+              <input
+                id={`duration-${index}`}
+                type="number"
+                min="0"
+                value={set.duration}
+                onChange={(e) => updateSet(index, "duration", e.target.value)}
+              />
+              <label htmlFor={`distance-${index}`}>Distance (km, optional)</label>
+              <input
+                id={`distance-${index}`}
+                type="number"
+                min="0"
+                step="0.01"
+                value={set.distance}
+                onChange={(e) => updateSet(index, "distance", e.target.value)}
+              />
+            </>
+          ) : (
+            <>
+              <label htmlFor={`weight-${index}`}>Weight (kg)</label>
+              <input
+                id={`weight-${index}`}
+                type="number"
+                min="0"
+                value={set.weight}
+                onChange={(e) => updateSet(index, "weight", e.target.value)}
+              />
+              <label htmlFor={`reps-${index}`}>Reps</label>
+              <input
+                id={`reps-${index}`}
+                type="number"
+                min="0"
+                value={set.reps}
+                onChange={(e) => updateSet(index, "reps", e.target.value)}
+              />
+            </>
+          )}
 
           <button
             onClick={() => {
-              const newSets = current.sets.filter((_, i) => i !== index);
-
+              const newSets = current.sets.filter((_, setIndex) => setIndex !== index);
               updateCurrentExercise(
                 workout,
-                exercise,
-                newSets.length
-                  ? newSets
-                  : [{ weight: "", reps: "" }]
+                exercise.name,
+                newSets.length ? newSets : [createEmptySet(exercise)]
               );
             }}
           >
-            Remove Set
+            Remove {isCardio ? "Activity" : "Set"}
           </button>
         </div>
       ))}
 
       <button
         onClick={() =>
-          updateCurrentExercise(
-            workout,
-            exercise,
-            [
-              ...current.sets,
-              {
-                weight: "",
-                reps: "",
-              },
-            ]
-          )
+          updateCurrentExercise(workout, exercise.name, [
+            ...current.sets,
+            createEmptySet(exercise),
+          ])
         }
       >
-        + Add Set
+        + Add {isCardio ? "Activity" : "Set"}
       </button>
 
       <button
+        className="save-button"
         onClick={() => {
-          saveExercise(workout, exercise, current.sets);
-
-          updateCurrentExercise(
-            workout,
-            exercise,
-            [{ weight: "", reps: "" }]
+          const hasValidEntries = current.sets.every((set) =>
+            isCardio
+              ? Number(set.duration) > 0
+              : set.weight !== "" && Number(set.weight) >= 0 && Number(set.reps) > 0
           );
+
+          if (!hasValidEntries) {
+            window.alert(
+              isCardio
+                ? "Enter a duration for every activity before saving."
+                : "Enter a weight and reps for every set before saving."
+            );
+            return;
+          }
+
+          saveExercise(workout, exercise, current.sets);
+          completeExercise(exercise.id);
         }}
       >
-        Save
+        Save Exercise
       </button>
     </div>
   );
