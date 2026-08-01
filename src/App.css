@@ -355,6 +355,13 @@ li {
   color: #171717;
 }
 
+.dark-theme h1,
+.dark-theme h2,
+.dark-theme h3,
+.dark-theme h4 {
+  color: #ffffff;
+}
+
 .light-theme .chart-label {
   fill: #444;
 }
