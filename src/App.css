@@ -26,6 +26,33 @@ h1 {
   position: relative;
 }
 
+.auth-page {
+  margin: 0 auto;
+  max-width: 420px;
+  padding: 20px;
+}
+
+.auth-card label,
+.auth-card input {
+  display: block;
+  text-align: left;
+  width: 100%;
+}
+
+.auth-card input {
+  box-sizing: border-box;
+}
+
+.auth-message,
+.sync-error {
+  color: #ffb4b4;
+  margin: 12px 0;
+}
+
+.light-theme .sync-error {
+  color: #9c1d1d;
+}
+
 .theme-toggle {
   align-items: center;
   background: #2c2c2c;

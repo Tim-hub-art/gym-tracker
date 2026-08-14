@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { exerciseDatabase } from "./data/exerciseDatabase";
 import { workoutTemplates } from "./data/workoutTemplates";
 import TodaysWorkout from "./pages/TodaysWorkout";
@@ -9,6 +9,8 @@ import ExerciseWorkout from "./pages/ExerciseWorkout";
 import WorkoutHistory from "./pages/WorkoutHistory";
 import BodyWeight from "./pages/BodyWeight";
 import Dashboard from "./pages/Dashboard";
+import Auth from "./pages/Auth";
+import { auth, db, isSupabaseConfigured } from "./lib/supabase";
 
 const workoutName = "Today's Workout";
 
@@ -19,7 +21,8 @@ function createEmptySet(exercise) {
 }
 
 function App() {
-  const [selectedUser, setSelectedUser] = useState("Tim");
+  const [session, setSession] = useState(() => auth.getSession());
+  const [syncError, setSyncError] = useState("");
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("Legs");
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [currentScreen, setCurrentScreen] = useState("todaysWorkout");
@@ -56,6 +59,61 @@ function App() {
     return stored ? JSON.parse(stored) : {};
   });
   const [theme, setTheme] = useState(() => localStorage.getItem("gymTrackerTheme") || "dark");
+  const selectedUser = session?.user?.email || "Gym Member";
+
+  async function loadCloudData() {
+    try {
+      const [historyRows, weightRows, noteRows, templateRows] = await Promise.all([
+        db.select("workout_history", "&order=saved_at.desc"),
+        db.select("body_weight_entries", "&order=recorded_on.desc"),
+        db.select("exercise_notes"),
+        db.select("custom_templates", "&order=created_at.desc"),
+      ]);
+      const history = historyRows.map((row) => ({
+        id: row.id,
+        user: session.user.email,
+        exercise: row.exercise_name,
+        sets: row.sets,
+        savedAt: row.saved_at,
+      }));
+      const weights = weightRows.map((row) => ({
+        id: row.id,
+        user: session.user.email,
+        weight: Number(row.weight),
+        recordedOn: row.recorded_on,
+      }));
+      const notes = Object.fromEntries(noteRows.map((row) => [row.exercise_name, row.note]));
+      const templates = templateRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        exerciseIds: row.exercise_ids,
+        custom: true,
+      }));
+      const latestExerciseData = {};
+      history.forEach((entry) => {
+        if (!latestExerciseData[entry.exercise]) latestExerciseData[entry.exercise] = { sets: entry.sets };
+      });
+      setWorkoutHistory(history);
+      setBodyWeights(weights);
+      setCustomTemplates(templates);
+      setExerciseNotes({ [session.user.email]: notes });
+      setSavedData({ [session.user.email]: { [workoutName]: latestExerciseData } });
+    } catch (error) {
+      setSyncError(`Could not load your cloud data: ${error.message}`);
+    }
+  }
+
+  function syncErrorMessage(error) {
+    setSyncError(`Could not save to Supabase: ${error.message}`);
+  }
+
+  useEffect(() => {
+    if (!session?.user) return undefined;
+    const loadTimer = window.setTimeout(() => {
+      loadCloudData();
+    }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [session]);
 
   function saveExercise(workout, exercise, sets) {
     const exerciseName = exercise.name;
@@ -70,22 +128,22 @@ function App() {
       },
     };
 
-    const newHistory = [
-      {
-        id: crypto.randomUUID(),
-        user: selectedUser,
-        exercise: exerciseName,
-        sets: sets.map((set) => ({ ...set })),
-        savedAt: new Date().toISOString(),
-      },
-      ...workoutHistory,
-    ];
+    const newHistoryEntry = { id: crypto.randomUUID(), user: selectedUser, exercise: exerciseName, sets: sets.map((set) => ({ ...set })), savedAt: new Date().toISOString() };
+    const newHistory = [newHistoryEntry, ...workoutHistory];
 
     setSavedData(newData);
     setWorkoutHistory(newHistory);
     localStorage.setItem("gymTracker", JSON.stringify(newData));
     localStorage.setItem("gymTrackerHistory", JSON.stringify(newHistory));
     updatePersonalRecords(exercise, sets);
+
+    db.insert("workout_history", {
+      user_id: session.user.id,
+      exercise_name: exerciseName,
+      sets: newHistoryEntry.sets,
+    }).then(([row]) => {
+      setWorkoutHistory((history) => history.map((entry) => entry.id === newHistoryEntry.id ? { ...entry, id: row.id, savedAt: row.saved_at } : entry));
+    }).catch(syncErrorMessage);
   }
 
   function updatePersonalRecords(exercise, sets) {
@@ -240,18 +298,22 @@ function App() {
   }
 
   function addBodyWeight(weight, recordedOn) {
+    const newWeight = {
+      id: crypto.randomUUID(),
+      user: selectedUser,
+      weight: Number(weight),
+      recordedOn,
+    };
     const newWeights = [
       ...bodyWeights,
-      {
-        id: crypto.randomUUID(),
-        user: selectedUser,
-        weight: Number(weight),
-        recordedOn,
-      },
+      newWeight,
     ];
 
     setBodyWeights(newWeights);
     localStorage.setItem("gymTrackerBodyWeights", JSON.stringify(newWeights));
+    db.insert("body_weight_entries", { user_id: session.user.id, weight: newWeight.weight, recorded_on: recordedOn })
+      .then(([row]) => setBodyWeights((weights) => weights.map((entry) => entry.id === newWeight.id ? { ...entry, id: row.id } : entry)))
+      .catch(syncErrorMessage);
   }
 
   function updateBodyWeight(id, weight, recordedOn) {
@@ -260,6 +322,7 @@ function App() {
     );
     setBodyWeights(newWeights);
     localStorage.setItem("gymTrackerBodyWeights", JSON.stringify(newWeights));
+    db.update("body_weight_entries", id, { weight: Number(weight), recorded_on: recordedOn }).catch(syncErrorMessage);
   }
 
   function removeBodyWeight(id) {
@@ -267,18 +330,23 @@ function App() {
     const newWeights = bodyWeights.filter((entry) => entry.id !== id);
     setBodyWeights(newWeights);
     localStorage.setItem("gymTrackerBodyWeights", JSON.stringify(newWeights));
+    db.remove("body_weight_entries", id).catch(syncErrorMessage);
   }
 
   function saveCustomTemplate(name) {
     const trimmedName = name.trim();
     if (!trimmedName || todaysWorkout.length === 0) return false;
 
+    const newTemplate = { id: crypto.randomUUID(), name: trimmedName, exerciseIds: todaysWorkout.map((exercise) => exercise.id), custom: true };
     const newTemplates = [
       ...customTemplates,
-      { id: crypto.randomUUID(), name: trimmedName, exerciseIds: todaysWorkout.map((exercise) => exercise.id), custom: true },
+      newTemplate,
     ];
     setCustomTemplates(newTemplates);
     localStorage.setItem("gymTrackerCustomTemplates", JSON.stringify(newTemplates));
+    db.insert("custom_templates", { user_id: session.user.id, name: trimmedName, exercise_ids: newTemplate.exerciseIds })
+      .then(([row]) => setCustomTemplates((templates) => templates.map((template) => template.id === newTemplate.id ? { ...template, id: row.id } : template)))
+      .catch(syncErrorMessage);
     return true;
   }
 
@@ -286,6 +354,7 @@ function App() {
     const newTemplates = customTemplates.filter((template) => template.id !== id);
     setCustomTemplates(newTemplates);
     localStorage.setItem("gymTrackerCustomTemplates", JSON.stringify(newTemplates));
+    db.remove("custom_templates", id).catch(syncErrorMessage);
   }
 
   function saveExerciseNote(exerciseName, note) {
@@ -298,6 +367,7 @@ function App() {
     };
     setExerciseNotes(newNotes);
     localStorage.setItem("gymTrackerExerciseNotes", JSON.stringify(newNotes));
+    db.upsert("exercise_notes", { user_id: session.user.id, exercise_name: exerciseName, note }, "user_id,exercise_name").catch(syncErrorMessage);
   }
 
   function toggleTheme() {
@@ -312,6 +382,28 @@ function App() {
     const newHistory = workoutHistory.filter((entry) => entry.id !== id);
     setWorkoutHistory(newHistory);
     localStorage.setItem("gymTrackerHistory", JSON.stringify(newHistory));
+    db.remove("workout_history", id).catch(syncErrorMessage);
+  }
+
+  async function handleSignIn(email, password) {
+    const nextSession = await auth.signIn(email, password);
+    setSession(nextSession);
+    return nextSession;
+  }
+
+  async function handleSignUp(email, password) {
+    const result = await auth.signUp(email, password);
+    if (result.session?.access_token) setSession(result.session);
+    return result;
+  }
+
+  async function handleSignOut() {
+    await auth.signOut();
+    setSession(null);
+  }
+
+  if (!session?.user) {
+    return <Auth configured={isSupabaseConfigured} onSignIn={handleSignIn} onSignUp={handleSignUp} />;
   }
 
   return (
@@ -328,12 +420,11 @@ function App() {
       </header>
 
       <div className="user-selector">
-        <label htmlFor="user">User: </label>
-        <select id="user" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
-          <option value="Tim">Tim</option>
-          <option value="Gerard">Gerard</option>
-        </select>
+        <span>Signed in as: {selectedUser}</span>
+        <button onClick={handleSignOut}>Sign Out</button>
       </div>
+
+      {syncError && <p className="sync-error">{syncError}</p>}
 
       <nav className="top-navigation" aria-label="Main navigation">
         <button onClick={() => setCurrentScreen("todaysWorkout")}>Today's Workout</button>
