@@ -5,9 +5,12 @@ function ExerciseSelection({
   addExerciseToWorkout,
   openExercise,
 }) {
-  const filteredExercises = exerciseDatabase.filter(
-    (exercise) => exercise.muscleGroup === selectedMuscleGroup
-  );
+  const filteredExercises =
+    selectedMuscleGroup === "All Workouts"
+      ? exerciseDatabase
+      : exerciseDatabase.filter(
+          (exercise) => exercise.muscleGroup === selectedMuscleGroup
+        );
 
   return (
     <div>

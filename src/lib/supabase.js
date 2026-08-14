@@ -33,10 +33,26 @@ async function request(path, options = {}) {
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  const data = response.status === 204 ? null : await response.json();
+  const responseText = response.status === 204 ? "" : await response.text();
+  let data = null;
+
+  if (responseText) {
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = { message: responseText };
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.error_description || "Supabase request failed.");
+    throw new Error(
+      data?.message ||
+      data?.error_description ||
+        data?.msg ||
+        data?.error ||
+        data?.code ||
+        `Supabase request failed (HTTP ${response.status}).`
+    );
   }
 
   return data;
@@ -52,10 +68,10 @@ export const auth = {
     saveSession(session);
     return session;
   },
-  async signUp(email, password) {
+  async signUp(email, password, displayName) {
     return request("/auth/v1/signup", {
       method: "POST",
-      body: { email, password },
+      body: { email, password, data: { display_name: displayName } },
     });
   },
   async signOut() {
@@ -64,6 +80,16 @@ export const auth = {
     } finally {
       saveSession(null);
     }
+  },
+  async updateDisplayName(displayName) {
+    const user = await request("/auth/v1/user", {
+      method: "PUT",
+      body: { data: { display_name: displayName } },
+    });
+    const session = getSession();
+    const updatedSession = { ...session, user };
+    saveSession(updatedSession);
+    return updatedSession;
   },
 };
 
@@ -94,5 +120,8 @@ export const db = {
   },
   remove(table, id) {
     return request(`/rest/v1/${table}?id=eq.${id}`, { method: "DELETE" });
+  },
+  rpc(functionName, body) {
+    return request(`/rest/v1/rpc/${functionName}`, { method: "POST", body });
   },
 };

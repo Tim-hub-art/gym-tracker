@@ -5,6 +5,15 @@ function MuscleGroups({ setCurrentScreen, setSelectedMuscleGroup }) {
     <div>
       <h2>Select Muscle Group</h2>
 
+      <button
+        onClick={() => {
+          setSelectedMuscleGroup("All Workouts");
+          setCurrentScreen("exerciseSelection");
+        }}
+      >
+        ✨ All Workouts
+      </button>
+
       {muscleGroups.map((group) => (
         <button
           key={group.id}

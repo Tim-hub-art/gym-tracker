@@ -12,6 +12,7 @@ function ExerciseCard({
   updateCurrentExercise,
   saveExercise,
   completeExercise,
+  onSaveComplete,
 }) {
   const isCardio = exercise.tracking === "cardio";
 
@@ -132,6 +133,7 @@ function ExerciseCard({
 
           saveExercise(workout, exercise, current.sets);
           completeExercise(exercise.id);
+          onSaveComplete();
         }}
       >
         Save Exercise

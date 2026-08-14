@@ -72,6 +72,7 @@ function ExerciseWorkout({
         updateCurrentExercise={updateCurrentExercise}
         saveExercise={saveExercise}
         completeExercise={completeExercise}
+        onSaveComplete={() => setCurrentScreen("todaysWorkout")}
       />
     </div>
   );
