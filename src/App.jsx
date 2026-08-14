@@ -380,6 +380,29 @@ function App() {
     }).catch(syncErrorMessage);
   }
 
+  function savePastWorkout(exercise, sets, recordedOn) {
+    const savedAt = new Date(`${recordedOn}T12:00:00`).toISOString();
+    const newHistoryEntry = {
+      id: crypto.randomUUID(),
+      user: selectedUser,
+      exercise: exercise.name,
+      sets: sets.map((set) => ({ ...set })),
+      savedAt,
+    };
+    setWorkoutHistory((history) => [newHistoryEntry, ...history]);
+    localStorage.setItem("gymTrackerHistory", JSON.stringify([newHistoryEntry, ...workoutHistory]));
+    updatePersonalRecords(exercise, sets);
+
+    db.insert("workout_history", {
+      user_id: session.user.id,
+      exercise_name: exercise.name,
+      sets: newHistoryEntry.sets,
+      saved_at: savedAt,
+    }).then(([row]) => {
+      setWorkoutHistory((history) => history.map((entry) => entry.id === newHistoryEntry.id ? { ...entry, id: row.id, savedAt: row.saved_at } : entry));
+    }).catch(syncErrorMessage);
+  }
+
   function updatePersonalRecords(exercise, sets) {
     const previous = personalRecords[selectedUser]?.[exercise.name] || {};
     const isCardio = exercise.tracking === "cardio";
@@ -661,7 +684,7 @@ function App() {
   return (
     <div className={`app ${theme}-theme`}>
       <header className="app-header">
-        <h1>Gym Tracker</h1>
+        <h1><span className="title-accent">G</span>ym <span className="title-accent">T</span>racker</h1>
         <button
           className="theme-toggle"
           onClick={() => setAppearance(theme === "dark" ? "light" : "dark")}
@@ -809,6 +832,7 @@ function App() {
           selectedUser={selectedUser}
           workoutHistory={workoutHistory}
           removeHistoryEntry={removeHistoryEntry}
+          savePastWorkout={savePastWorkout}
           setCurrentScreen={setCurrentScreen}
         />
       )}
