@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function Auth({ onSignIn, onSignUp, configured }) {
+function Auth({ onSignIn, onSignUp, configured, notice }) {
   const [accountName, setAccountName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,6 +60,7 @@ function Auth({ onSignIn, onSignUp, configured }) {
       >
         <h2>{isCreatingAccount ? "Create Account" : "Sign In"}</h2>
         <p>{isCreatingAccount ? "Create an account to keep your workout data safely synced." : "Sign in to access your workouts and progress."}</p>
+        {notice && <p className="auth-message">{notice}</p>}
         {isCreatingAccount && (
           <>
             <label htmlFor="account-name">Account name</label>

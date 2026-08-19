@@ -60,6 +60,9 @@ async function request(path, options = {}) {
 
 export const auth = {
   getSession,
+  clearSession() {
+    saveSession(null);
+  },
   async signIn(email, password) {
     const session = await request("/auth/v1/token?grant_type=password", {
       method: "POST",

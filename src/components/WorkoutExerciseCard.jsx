@@ -1,16 +1,4 @@
-import backMachine from "../assets/machines/back.png";
-import coreMachine from "../assets/machines/core.png";
-import legsMachine from "../assets/machines/legs.png";
-import shouldersMachine from "../assets/machines/shoulders.png";
-import tricepsMachine from "../assets/machines/triceps.png";
-
-const machineImages = {
-  Legs: legsMachine,
-  Back: backMachine,
-  Shoulders: shouldersMachine,
-  Core: coreMachine,
-  Triceps: tricepsMachine,
-};
+import { exerciseImages } from "../data/exerciseImages";
 
 function WorkoutExerciseCard({
   exercise,
@@ -26,10 +14,10 @@ function WorkoutExerciseCard({
         <span className="workout-status" aria-hidden="true">
           {exercise.completed ? "✓" : ""}
         </span>
-        {machineImages[exercise.muscleGroup] && (
+        {exerciseImages[exercise.id] && (
           <img
             className="machine-thumbnail"
-            src={machineImages[exercise.muscleGroup]}
+            src={exerciseImages[exercise.id]}
             alt=""
           />
         )}

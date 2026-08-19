@@ -480,6 +480,15 @@ textarea:focus {
 .participant-tabs button.active { background: var(--lime); border-color: var(--lime); color: #172008; }
 .session-person { margin-bottom: 4px; }
 .session-person strong { color: var(--lime); }
+.collapsed-session-exercise { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.collapsed-session-exercise h3 { margin: 0; }
+.collapsed-session-exercise p { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+.collapsed-exercise-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.collapsed-exercise-actions button { margin: 0; min-height: 34px; padding: 7px 9px; }
+.session-previous-result { background: rgba(22, 30, 23, 0.72); border: 1px solid var(--line); border-radius: 10px; color: var(--muted); display: grid; font-size: 0.83rem; gap: 5px; margin-top: 12px; padding: 10px; }
+.session-previous-result strong { color: var(--lime); font-size: 0.78rem; text-transform: uppercase; }
+.session-previous-sets { display: flex; flex-wrap: wrap; gap: 6px; }
+.session-previous-sets span { background: rgba(199, 242, 72, 0.09); border-radius: 6px; color: #e9eee4; padding: 3px 6px; }
 .session-exercise { margin: 14px 0; }
 .session-exercise > button { margin: 7px 7px 0 0; }
 .session-progress-heading { align-items: center; display: flex; justify-content: space-between; }
@@ -503,6 +512,8 @@ textarea:focus {
 .leave-session-button { background: transparent; border-color: #684044; color: #ffc5c7; }
 .light-theme .exercise-member-status span { background: #edf1e9; border-color: #cbd5c7; }
 .light-theme .session-machine-thumbnail { border-color: #cbd5c7; }
+.light-theme .session-previous-result { background: #f8faf5; }
+.light-theme .session-previous-sets span { color: #253025; }
 .light-theme .friend-row strong,
 .light-theme .friend-picker label { color: #253025; }
 .ocean-theme .status-chip { background: rgba(84, 213, 255, 0.14); border-color: rgba(84, 213, 255, 0.35); }

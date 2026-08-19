@@ -1,34 +1,24 @@
 import { useMemo, useState } from "react";
 import { exerciseDatabase } from "../data/exerciseDatabase";
-import backMachine from "../assets/machines/back.png";
-import coreMachine from "../assets/machines/core.png";
-import legsMachine from "../assets/machines/legs.png";
-import shouldersMachine from "../assets/machines/shoulders.png";
-import tricepsMachine from "../assets/machines/triceps.png";
-
-const machineImages = {
-  Legs: legsMachine,
-  Back: backMachine,
-  Shoulders: shouldersMachine,
-  Core: coreMachine,
-  Triceps: tricepsMachine,
-};
+import { exerciseImages } from "../data/exerciseImages";
 
 function emptySet(exercise) {
   return exercise.tracking === "cardio" ? { duration: "", distance: "" } : { weight: "", reps: "" };
 }
 
-function WorkoutSession({ session, participants, results, saveSessionResult, finishSession, updateSessionExercises, canEditExercises, setCurrentScreen }) {
+function WorkoutSession({ session, participants, results, previousResults, saveSessionResult, finishSession, updateSessionExercises, canEditExercises, setCurrentScreen }) {
   const accepted = participants.filter((participant) => participant.status === "accepted");
   const [participantId, setParticipantId] = useState("");
   const exercises = useMemo(() => exerciseDatabase.filter((exercise) => session.exerciseIds.includes(exercise.id)), [session]);
   const [drafts, setDrafts] = useState({});
+  const [collapsedExercises, setCollapsedExercises] = useState({});
   const [exerciseToAdd, setExerciseToAdd] = useState("");
   const activeParticipantId = accepted.some((participant) => participant.userId === participantId)
     ? participantId
     : accepted[0]?.userId || "";
   const isFinished = Boolean(session.completedAt);
   const savedResult = (userId, exerciseId) => results.find((result) => result.participantId === userId && result.exerciseId === exerciseId && result.sets?.length);
+  const previousResult = (userId, exerciseId) => previousResults.find((result) => result.participantId === userId && result.exerciseId === exerciseId && result.sets?.length);
   const totalItems = accepted.length * exercises.length;
   const savedItems = accepted.reduce((total, participant) => total + exercises.filter((exercise) => savedResult(participant.userId, exercise.id)).length, 0);
   const readyToFinish = totalItems > 0 && savedItems === totalItems;
@@ -55,6 +45,13 @@ function WorkoutSession({ session, participants, results, saveSessionResult, fin
   function updateSets(exercise, nextSets) {
     const draftKey = `${activeParticipantId}-${exercise.id}`;
     setDrafts((current) => ({ ...current, [draftKey]: nextSets }));
+  }
+
+  async function saveAndCollapse(exercise) {
+    const didSave = await saveSessionResult(session.id, activeParticipantId, exercise.id, getSets(exercise));
+    if (didSave) {
+      setCollapsedExercises((current) => ({ ...current, [`${activeParticipantId}-${exercise.id}`]: true }));
+    }
   }
 
   const activePerson = accepted.find((participant) => participant.userId === activeParticipantId);
@@ -96,16 +93,25 @@ function WorkoutSession({ session, participants, results, saveSessionResult, fin
       {exercises.map((exercise) => {
         const sets = getSets(exercise);
         const cardio = exercise.tracking === "cardio";
+        const previous = previousResult(activeParticipantId, exercise.id);
+        const collapseKey = `${activeParticipantId}-${exercise.id}`;
+        const isCollapsed = !isFinished && Boolean(collapsedExercises[collapseKey]);
         return <section className="card session-exercise" key={exercise.id}>
-          <div className="exercise-session-heading"><div className="session-exercise-identity">{machineImages[exercise.muscleGroup] && <img className="session-machine-thumbnail" src={machineImages[exercise.muscleGroup]} alt="" />}<div><h3>{exercise.name}</h3><p>Machine {exercise.machine ?? "N/A"}</p></div></div><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id) ? "saved" : "not saved"}`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}</span>)}</div></div>
+          {isCollapsed ? <div className="collapsed-session-exercise"><div><h3>{exercise.name}</h3><p>Saved for {activePerson?.name || "participant"}</p></div><div className="collapsed-exercise-actions"><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id) ? "saved" : "not saved"}`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}</span>)}</div><button onClick={() => setCollapsedExercises((current) => ({ ...current, [collapseKey]: false }))}>Unfold / Edit</button></div></div> : <>
+          <div className="exercise-session-heading"><div className="session-exercise-identity">{exerciseImages[exercise.id] && <img className="session-machine-thumbnail" src={exerciseImages[exercise.id]} alt="" />}<div><h3>{exercise.name}</h3><p>Machine {exercise.machine ?? "N/A"}</p></div></div><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id) ? "saved" : "not saved"}`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}</span>)}</div></div>
           {!isFinished && canEditExercises && <button className="remove-session-exercise" onClick={() => removeExercise(exercise.id)}>Remove Exercise</button>}
           {!isFinished && <>
+            <div className="session-previous-result">
+              <strong>Previous workout</strong>
+              {previous ? <div className="session-previous-sets">{previous.sets.map((set, index) => <span key={index}>{cardio ? `${set.duration || 0} min · ${set.distance || 0} km` : `${set.weight || 0} kg × ${set.reps || 0}`} </span>)}</div> : <span>No previous result for {activePerson?.name || "this person"}.</span>}
+            </div>
             {sets.map((set, index) => <div className="set-editor" key={index}>
               <h4>{cardio ? "Activity" : `Set ${index + 1}`}</h4>
               {cardio ? <><input type="number" min="0" placeholder="Minutes" value={set.duration} onChange={(event) => updateSets(exercise, sets.map((item, itemIndex) => itemIndex === index ? { ...item, duration: event.target.value } : item))} /><input type="number" min="0" placeholder="Distance (km)" value={set.distance} onChange={(event) => updateSets(exercise, sets.map((item, itemIndex) => itemIndex === index ? { ...item, distance: event.target.value } : item))} /></> : <><input type="number" min="0" placeholder="Weight (kg)" value={set.weight} onChange={(event) => updateSets(exercise, sets.map((item, itemIndex) => itemIndex === index ? { ...item, weight: event.target.value } : item))} /><input type="number" min="0" placeholder="Reps" value={set.reps} onChange={(event) => updateSets(exercise, sets.map((item, itemIndex) => itemIndex === index ? { ...item, reps: event.target.value } : item))} /></>}
             </div>)}
             <button onClick={() => updateSets(exercise, [...sets, emptySet(exercise)])}>+ Add {cardio ? "Activity" : "Set"}</button>
-            <button className="save-button" onClick={() => saveSessionResult(session.id, activeParticipantId, exercise.id, getSets(exercise))}>Save {activePerson?.name || "results"}</button>
+            <button className="save-button" onClick={() => saveAndCollapse(exercise)}>Save {activePerson?.name || "results"}</button>
+          </>}
           </>}
         </section>;
       })}

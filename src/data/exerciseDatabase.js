@@ -109,8 +109,8 @@ export const exerciseDatabase = [
   },
   {
     id: 19,
-    name: "Hammer Curl",
-    muscleGroup: "Biceps",
+    name: "Tricep Extension",
+    muscleGroup: "Triceps",
     machine: null,
   },
   {

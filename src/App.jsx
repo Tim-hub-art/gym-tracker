@@ -25,6 +25,7 @@ function createEmptySet(exercise) {
 function App() {
   const [session, setSession] = useState(() => auth.getSession());
   const [syncError, setSyncError] = useState("");
+  const [authNotice, setAuthNotice] = useState("");
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("Legs");
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [currentScreen, setCurrentScreen] = useState("todaysWorkout");
@@ -70,6 +71,7 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [sessionParticipants, setSessionParticipants] = useState([]);
   const [sessionResults, setSessionResults] = useState([]);
+  const [sessionPreviousResults, setSessionPreviousResults] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
@@ -121,12 +123,27 @@ function App() {
         window.setTimeout(() => loadCloudData(attempt + 1), 1500);
         return;
       }
-      setSyncError(`Could not load your cloud data: ${error.message}`);
+      syncErrorMessage(error, "Could not load your cloud data");
     }
   }
 
-  function syncErrorMessage(error) {
-    setSyncError(`Could not save to Supabase: ${error.message}`);
+  function hasExpiredSession(error) {
+    return /jwt.*expired|expired.*jwt|invalid jwt/i.test(error?.message || "");
+  }
+
+  function endExpiredSession() {
+    auth.clearSession();
+    setSession(null);
+    setSyncError("");
+    setAuthNotice("Your session expired. Please sign in again.");
+  }
+
+  function syncErrorMessage(error, prefix = "Could not save to Supabase") {
+    if (hasExpiredSession(error)) {
+      endExpiredSession();
+      return;
+    }
+    setSyncError(`${prefix}: ${error.message}`);
   }
 
   async function loadSocialData() {
@@ -172,7 +189,7 @@ function App() {
         };
       }));
     } catch (error) {
-      setSyncError(`Friends and sessions need the new Supabase SQL setup: ${error.message}`);
+      syncErrorMessage(error, "Friends and sessions could not load");
     }
   }
 
@@ -245,13 +262,22 @@ function App() {
 
   async function openSession(workoutSession) {
     try {
-      const resultRows = await db.select("workout_session_results", `&session_id=eq.${workoutSession.id}`);
+      const [resultRows, previousRows] = await Promise.all([
+        db.select("workout_session_results", `&session_id=eq.${workoutSession.id}`),
+        db.rpc("get_workout_session_previous_results", { target_session_id: workoutSession.id }),
+      ]);
       setSessionResults(resultRows.map((result) => ({
         id: result.id,
         sessionId: result.session_id,
         participantId: result.participant_id,
         exerciseId: result.exercise_id,
         sets: result.sets,
+      })));
+      setSessionPreviousResults(previousRows.map((result) => ({
+        participantId: result.participant_id,
+        exerciseId: result.exercise_id,
+        sets: result.sets,
+        savedAt: result.saved_at,
       })));
       setSelectedSession(workoutSession);
       setCurrentScreen("workoutSession");
@@ -273,8 +299,10 @@ function App() {
         ...current.filter((result) => !(result.sessionId === sessionId && result.participantId === participantId && result.exerciseId === exerciseId)),
         { id: saved.id, sessionId, participantId, exerciseId, sets: saved.sets },
       ]);
+      return true;
     } catch (error) {
       syncErrorMessage(error);
+      return false;
     }
   }
 
@@ -292,7 +320,7 @@ function App() {
       await Promise.all([loadCloudData(), loadSocialData()]);
       setSelectedSession(null);
       setCurrentScreen("friends");
-      window.alert("Session finished. Each participant's results are now saved in their history.");
+      window.alert("Session finished. Everyone's results are saved to history and the shared session is now closed.");
     } catch (error) {
       syncErrorMessage(error);
     }
@@ -648,12 +676,14 @@ function App() {
   async function handleSignIn(email, password) {
     const nextSession = await auth.signIn(email, password);
     setSession(nextSession);
+    setAuthNotice("");
     return nextSession;
   }
 
   async function handleSignUp(email, password, displayName) {
     const result = await auth.signUp(email, password, displayName);
     if (result.session?.access_token) setSession(result.session);
+    setAuthNotice("");
     return result;
   }
 
@@ -678,7 +708,7 @@ function App() {
   }
 
   if (!session?.user) {
-    return <Auth configured={isSupabaseConfigured} onSignIn={handleSignIn} onSignUp={handleSignUp} />;
+    return <Auth configured={isSupabaseConfigured} notice={authNotice} onSignIn={handleSignIn} onSignUp={handleSignUp} />;
   }
 
   return (
@@ -877,6 +907,7 @@ function App() {
           session={selectedSession}
           participants={sessionParticipants.filter((participant) => participant.sessionId === selectedSession.id)}
           results={sessionResults}
+          previousResults={sessionPreviousResults}
           saveSessionResult={saveSessionResult}
           finishSession={finishSession}
           updateSessionExercises={updateSessionExercises}

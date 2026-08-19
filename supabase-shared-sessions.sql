@@ -274,6 +274,11 @@ begin
   update public.workout_sessions
   set completed_at = now()
   where id = target_session_id;
+
+  update public.workout_session_participants
+  set status = 'left'
+  where session_id = target_session_id
+    and status in ('pending', 'accepted');
 end;
 $$;
 
@@ -348,3 +353,68 @@ create policy "Invitees can respond" on public.workout_session_participants for 
 create policy "Accepted participants can view results" on public.workout_session_results for select using (public.is_accepted_workout_session_participant(session_id));
 create policy "Accepted participants can add results" on public.workout_session_results for insert with check (public.is_accepted_workout_session_participant(session_id));
 create policy "Accepted participants can update results" on public.workout_session_results for update using (public.is_accepted_workout_session_participant(session_id));
+
+-- Lets accepted session members see the latest earlier result for the exercises
+-- that belong to this session. The exercise list is kept inside this function so
+-- the client cannot request another person's unrelated workout history.
+create or replace function public.get_workout_session_previous_results(target_session_id uuid)
+returns table (
+  participant_id uuid,
+  exercise_id integer,
+  sets jsonb,
+  saved_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  with session_exercises as (
+    select
+      item.value::integer as exercise_id,
+      case item.value::integer
+        when 1 then 'Leg Press'
+        when 2 then 'Leg Extension'
+        when 3 then 'Prone Leg Curl'
+        when 4 then 'Seated Leg Curl'
+        when 5 then 'Calf Press'
+        when 6 then 'Hip Abduction'
+        when 7 then 'Hip Adduction'
+        when 8 then 'Lat Pull'
+        when 9 then 'Seated Row'
+        when 10 then 'Back Extension'
+        when 11 then 'Shoulder Press'
+        when 12 then 'Abdominal Crunch'
+        when 13 then 'Seated Dip'
+        when 14 then 'Dip / Chin Assist'
+        when 15 then 'Chest Press'
+        when 16 then 'Pec Deck'
+        when 17 then 'Cable Crossover'
+        when 18 then 'Bicep Curl'
+        when 19 then 'Tricep Extension'
+        when 20 then 'Treadmill'
+        when 21 then 'Exercise Bike'
+        when 22 then 'Rowing Machine'
+        when 23 then 'Walking Warm-Up'
+        when 24 then 'Dynamic Warm-Up'
+        when 25 then 'Elliptical'
+      end as exercise_name
+    from public.workout_sessions workout_session
+    cross join lateral jsonb_array_elements_text(workout_session.exercise_ids) item(value)
+    where workout_session.id = target_session_id
+  )
+  select distinct on (member.user_id, session_exercises.exercise_id)
+    member.user_id,
+    session_exercises.exercise_id,
+    history.sets,
+    history.saved_at
+  from public.workout_session_participants member
+  cross join session_exercises
+  join public.workout_history history
+    on history.user_id = member.user_id
+   and history.exercise_name = session_exercises.exercise_name
+  where member.session_id = target_session_id
+    and member.status = 'accepted'
+    and public.is_accepted_workout_session_participant(target_session_id)
+  order by member.user_id, session_exercises.exercise_id, history.saved_at desc;
+$$;

@@ -1,19 +1,7 @@
 import { useState } from "react";
 import ExerciseCard from "../components/ExerciseCard";
 import { getExerciseGuidance } from "../data/exerciseGuidance";
-import backMachine from "../assets/machines/back.png";
-import coreMachine from "../assets/machines/core.png";
-import legsMachine from "../assets/machines/legs.png";
-import shouldersMachine from "../assets/machines/shoulders.png";
-import tricepsMachine from "../assets/machines/triceps.png";
-
-const machineImages = {
-  Legs: legsMachine,
-  Back: backMachine,
-  Shoulders: shouldersMachine,
-  Core: coreMachine,
-  Triceps: tricepsMachine,
-};
+import { exerciseImages } from "../data/exerciseImages";
 
 function createEmptySet(exercise) {
   return exercise.tracking === "cardio"
@@ -46,7 +34,7 @@ function ExerciseWorkout({
     <div>
       <button onClick={() => setCurrentScreen("todaysWorkout")}>Back to Workout</button>
       <div className="exercise-workout-heading">
-        {machineImages[selectedExercise.muscleGroup] && <img className="exercise-workout-image" src={machineImages[selectedExercise.muscleGroup]} alt="" />}
+        {exerciseImages[selectedExercise.id] && <img className="exercise-workout-image" src={exerciseImages[selectedExercise.id]} alt="" />}
         <div><h2>{selectedExercise.name}</h2><p>Machine: {selectedExercise.machine ?? "N/A"}</p></div>
       </div>
 
