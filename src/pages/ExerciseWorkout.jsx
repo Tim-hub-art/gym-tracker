@@ -49,7 +49,7 @@ function ExerciseWorkout({
           {isCardio ? (
             <p>Longest duration: {personalRecord.longestDuration || 0} min · Longest distance: {personalRecord.longestDistance || 0} km</p>
           ) : (
-            <p>Highest weight: {personalRecord.highestWeight || 0} kg · Most reps: {personalRecord.mostReps || 0} · Best set volume: {personalRecord.bestSetVolume || 0} kg</p>
+            <p>Highest weight: {personalRecord.highestWeight || 0} kg · Most reps: {personalRecord.mostReps || 0} · Estimated 1RM: {Math.round(personalRecord.estimatedOneRepMax || 0)} kg · Best set volume: {personalRecord.bestSetVolume || 0} kg</p>
           )}
         </div>
       )}

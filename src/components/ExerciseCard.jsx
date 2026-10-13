@@ -23,6 +23,26 @@ function ExerciseCard({
     updateCurrentExercise(workout, exercise.name, newSets);
   }
 
+  function copyPreviousSet(index) {
+    const source = current.sets[index - 1] || previous.sets?.[index] || previous.sets?.at(-1);
+    if (!source) return;
+    updateCurrentExercise(
+      workout,
+      exercise.name,
+      current.sets.map((set, setIndex) => (setIndex === index ? { ...set, ...source } : set))
+    );
+  }
+
+  function addWeight(index, amount) {
+    const nextWeight = Math.max(0, (Number(current.sets[index].weight) || 0) + amount);
+    updateSet(index, "weight", String(nextWeight));
+  }
+
+  function copyReps(index) {
+    const source = current.sets[index - 1] || previous.sets?.[index] || previous.sets?.at(-1);
+    if (source?.reps !== undefined) updateSet(index, "reps", source.reps);
+  }
+
   return (
     <div className="card">
       <h3>{exercise.name}</h3>
@@ -84,6 +104,11 @@ function ExerciseCard({
                 value={set.reps}
                 onChange={(e) => updateSet(index, "reps", e.target.value)}
               />
+              <div className="quick-set-actions" aria-label={`Quick actions for set ${index + 1}`}>
+                <button type="button" onClick={() => copyPreviousSet(index)}>Repeat last set</button>
+                <button type="button" onClick={() => addWeight(index, 2.5)}>+2.5 kg</button>
+                <button type="button" onClick={() => copyReps(index)}>Same reps</button>
+              </div>
             </>
           )}
 

@@ -439,6 +439,21 @@ textarea:focus {
 .set-editor { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 10px; }
 .set-editor label, .weight-form label, .auth-card label { color: #d5dbd2; display: block; font-size: 0.9rem; font-weight: 700; }
 .set-editor input { max-width: 160px; }
+.quick-set-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.quick-set-actions button { background: rgba(199, 242, 72, 0.08); border-color: rgba(199, 242, 72, 0.28); color: #e8eedf; font-size: 0.78rem; margin: 0; min-height: 32px; padding: 5px 8px; }
+.history-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.history-actions button { margin: 0; }
+.history-filters h3 { margin-bottom: 10px; }
+.filter-grid { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.filter-grid label { color: #d5dbd2; display: grid; font-size: 0.8rem; font-weight: 700; gap: 4px; }
+.filter-grid select, .filter-grid input { margin: 0; min-width: 0; width: 100%; }
+.history-filters > button { margin-top: 10px; }
+.dashboard-stats { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 16px 0; }
+.dashboard-stats > div { background: rgba(28, 35, 29, 0.88); border: 1px solid var(--line); border-radius: 13px; display: grid; gap: 3px; padding: 13px; }
+.dashboard-stats span, .dashboard-stats small { color: var(--muted); font-size: 0.75rem; }
+.dashboard-stats strong { color: var(--lime); font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.achievement-notice { background: rgba(199, 242, 72, 0.14); border-color: rgba(199, 242, 72, 0.48); color: #eef5db; margin: 0 0 12px; text-align: left; width: 100%; }
+.achievement-notice span { color: var(--lime); float: right; font-size: 0.78rem; }
 
 .exercise-details summary { color: #edf3e9; cursor: pointer; font-weight: 800; }
 .exercise-details p { margin: 12px 0 0; }
@@ -498,6 +513,8 @@ textarea:focus {
 .session-member-progress > div { align-items: center; border-top: 1px solid var(--line); display: grid; gap: 7px; grid-template-columns: 22px 1fr auto; padding-top: 8px; }
 .session-member-progress > div > span { color: var(--lime); font-weight: 900; }
 .session-member-progress small { color: var(--muted); font-size: 0.72rem; }
+.session-ready-status { border: 1px solid #3b463c; border-radius: 999px; color: var(--muted); font-size: 0.68rem; padding: 4px 7px; white-space: nowrap; }
+.session-ready-status.ready { background: rgba(199, 242, 72, 0.14); border-color: rgba(199, 242, 72, 0.4); color: var(--lime); }
 .exercise-session-heading { align-items: flex-start; display: flex; gap: 10px; justify-content: space-between; }
 .session-exercise-identity { align-items: center; display: flex; gap: 11px; min-width: 0; }
 .session-machine-thumbnail { background: #0d100e; border: 1px solid #354036; border-radius: 12px; display: block; flex: 0 0 auto; height: 76px; object-fit: cover; width: 76px; }
@@ -513,6 +530,9 @@ textarea:focus {
 .light-theme .exercise-member-status span { background: #edf1e9; border-color: #cbd5c7; }
 .light-theme .session-machine-thumbnail { border-color: #cbd5c7; }
 .light-theme .session-previous-result { background: #f8faf5; }
+.light-theme .quick-set-actions button { color: #253025; }
+.light-theme .filter-grid label { color: #425044; }
+.light-theme .dashboard-stats > div { background: #f7faf4; }
 .light-theme .session-previous-sets span { color: #253025; }
 .light-theme .friend-row strong,
 .light-theme .friend-picker label { color: #253025; }

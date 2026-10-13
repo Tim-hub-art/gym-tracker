@@ -10,17 +10,33 @@ function formatSet(set) {
   return `${set.weight} kg × ${set.reps}`;
 }
 
-function WorkoutHistory({ selectedUser, workoutHistory, removeHistoryEntry, savePastWorkout, setCurrentScreen }) {
+function WorkoutHistory({ selectedUser, workoutHistory, bodyWeights, removeHistoryEntry, savePastWorkout, setCurrentScreen }) {
   const [openDates, setOpenDates] = useState([]);
   const [isAddingPastWorkout, setIsAddingPastWorkout] = useState(false);
   const [exerciseId, setExerciseId] = useState(String(exerciseDatabase[0]?.id || ""));
   const [recordedOn, setRecordedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const selectedExercise = exerciseDatabase.find((exercise) => String(exercise.id) === exerciseId) || exerciseDatabase[0];
   const [sets, setSets] = useState(() => [emptySet(exerciseDatabase[0])]);
+  const [filterExercise, setFilterExercise] = useState("");
+  const [filterMuscleGroup, setFilterMuscleGroup] = useState("");
+  const [filterWorkoutType, setFilterWorkoutType] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const isCardio = selectedExercise?.tracking === "cardio";
 
-  const dateGroups = workoutHistory
-    .filter((entry) => entry.user === selectedUser)
+  const userHistory = workoutHistory.filter((entry) => entry.user === selectedUser);
+  const muscleGroups = [...new Set(exerciseDatabase.map((exercise) => exercise.muscleGroup))];
+  const filteredHistory = userHistory.filter((entry) => {
+    const exercise = exerciseDatabase.find((item) => item.name === entry.exercise);
+    const entryDate = entry.savedAt.slice(0, 10);
+    return (!filterExercise || entry.exercise === filterExercise)
+      && (!filterMuscleGroup || exercise?.muscleGroup === filterMuscleGroup)
+      && (!filterWorkoutType || (filterWorkoutType === "shared" ? Boolean(entry.sharedSessionId) : !entry.sharedSessionId))
+      && (!fromDate || entryDate >= fromDate)
+      && (!toDate || entryDate <= toDate);
+  });
+
+  const dateGroups = filteredHistory
     .reduce((groups, entry) => {
       const date = new Date(entry.savedAt);
       const dateKey = date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
@@ -56,11 +72,47 @@ function WorkoutHistory({ selectedUser, workoutHistory, removeHistoryEntry, save
     setIsAddingPastWorkout(false);
   }
 
+  function escapeCsv(value) {
+    const text = String(value ?? "");
+    return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+  }
+
+  function exportData() {
+    const historyRows = userHistory.flatMap((entry) => entry.sets.map((set, index) => [
+      "workout", entry.savedAt, entry.exercise, index + 1, set.weight ?? "", set.reps ?? "", set.duration ?? "", set.distance ?? "",
+    ]));
+    const weightRows = bodyWeights.filter((entry) => entry.user === selectedUser).map((entry) => [
+      "body weight", entry.recordedOn, "", "", entry.weight, "", "", "",
+    ]);
+    const csv = [["type", "date", "exercise", "set", "weight_kg", "reps", "duration_minutes", "distance_km"], ...historyRows, ...weightRows]
+      .map((row) => row.map(escapeCsv).join(","))
+      .join("\n");
+    const downloadUrl = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `gym-tracker-${selectedUser.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-export.csv`;
+    link.click();
+    URL.revokeObjectURL(downloadUrl);
+  }
+
   return (
     <div>
       <button onClick={() => setCurrentScreen("todaysWorkout")}>Back</button>
       <h2>{selectedUser}'s Exercise History</h2>
-      <button className="save-button" onClick={() => setIsAddingPastWorkout((open) => !open)}>{isAddingPastWorkout ? "Cancel" : "+ Log Past Workout"}</button>
+      <div className="history-actions"><button className="save-button" onClick={() => setIsAddingPastWorkout((open) => !open)}>{isAddingPastWorkout ? "Cancel" : "+ Log Past Workout"}</button><button onClick={exportData}>Export My Data</button></div>
+
+      <section className="card history-filters">
+        <h3>Filter history</h3>
+        <div className="filter-grid">
+          <label>Exercise<select value={filterExercise} onChange={(event) => setFilterExercise(event.target.value)}><option value="">All exercises</option>{[...new Set(userHistory.map((entry) => entry.exercise))].sort().map((exercise) => <option key={exercise} value={exercise}>{exercise}</option>)}</select></label>
+          <label>Muscle group<select value={filterMuscleGroup} onChange={(event) => setFilterMuscleGroup(event.target.value)}><option value="">All muscle groups</option>{muscleGroups.map((group) => <option key={group} value={group}>{group}</option>)}</select></label>
+          <label>Workout type<select value={filterWorkoutType} onChange={(event) => setFilterWorkoutType(event.target.value)}><option value="">All workouts</option><option value="individual">Individual</option><option value="shared">Shared sessions</option></select></label>
+          <label>From<input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label>
+          <label>To<input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label>
+        </div>
+        {filterWorkoutType === "shared" && <p className="form-help">Shared-session filtering applies to sessions completed after this update.</p>}
+        {(filterExercise || filterMuscleGroup || filterWorkoutType || fromDate || toDate) && <button onClick={() => { setFilterExercise(""); setFilterMuscleGroup(""); setFilterWorkoutType(""); setFromDate(""); setToDate(""); }}>Clear filters</button>}
+      </section>
 
       {isAddingPastWorkout && <section className="card past-workout-form">
         <h3>Log a past workout</h3>
@@ -79,7 +131,7 @@ function WorkoutHistory({ selectedUser, workoutHistory, removeHistoryEntry, save
         </form>
       </section>}
 
-      {orderedGroups.length === 0 ? <p>No saved exercises yet.</p> : orderedGroups.map(([dateKey, group]) => {
+      {orderedGroups.length === 0 ? <p>No saved exercises match these filters.</p> : orderedGroups.map(([dateKey, group]) => {
         const isOpen = openDates.includes(dateKey);
         return <section className="history-date-group" key={dateKey}>
           <button className="history-date-button" onClick={() => toggleDate(dateKey)} aria-expanded={isOpen}>{isOpen ? "▼" : "▶"} {dateKey} ({group.entries.length} workout{group.entries.length === 1 ? "" : "s"})</button>

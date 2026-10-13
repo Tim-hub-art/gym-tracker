@@ -67,10 +67,27 @@ function Dashboard({ selectedUser, workoutHistory, bodyWeights }) {
       label: new Date(entry.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     }))
     .filter((entry) => entry.value > 0);
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - ((startOfWeek.getDay() + 6) % 7));
+  const weeklyEntries = userHistory.filter((entry) => new Date(entry.savedAt) >= startOfWeek);
+  const weeklyWorkoutDays = new Set(weeklyEntries.map((entry) => entry.savedAt.slice(0, 10))).size;
+  const weeklyVolume = weeklyEntries.reduce((total, entry) => total + entry.sets.reduce((setTotal, set) => setTotal + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0), 0);
+  const bodyWeightChange = bodyWeightPoints.length > 1 ? bodyWeightPoints.at(-1).value - bodyWeightPoints[0].value : null;
+  const mostImproved = exerciseNames.map((exercise) => {
+    const records = userHistory.filter((entry) => entry.exercise === exercise).map((entry) => Math.max(...entry.sets.map((set) => (Number(set.weight) || 0) * (1 + (Number(set.reps) || 0) / 30))));
+    return { exercise, improvement: records.length > 1 ? records.at(-1) - records[0] : 0 };
+  }).sort((first, second) => second.improvement - first.improvement)[0];
 
   return (
     <div>
       <h2>{selectedUser}'s Dashboard</h2>
+      <section className="dashboard-stats" aria-label="Training overview">
+        <div><span>This week</span><strong>{weeklyWorkoutDays}</strong><small>workout day{weeklyWorkoutDays === 1 ? "" : "s"}</small></div>
+        <div><span>Weekly volume</span><strong>{Math.round(weeklyVolume).toLocaleString()}</strong><small>kg lifted</small></div>
+        <div><span>Body-weight trend</span><strong>{bodyWeightChange === null ? "—" : `${bodyWeightChange > 0 ? "+" : ""}${bodyWeightChange.toFixed(1)} kg`}</strong><small>{bodyWeightChange === null ? "need 2 entries" : "overall change"}</small></div>
+        <div><span>Most improved</span><strong>{mostImproved?.exercise || "—"}</strong><small>{mostImproved?.improvement > 0 ? `+${mostImproved.improvement.toFixed(1)} estimated 1RM` : "keep logging"}</small></div>
+      </section>
       <LineChart title="Body Weight" points={bodyWeightPoints} unit="kg" />
 
       <div className="chart">

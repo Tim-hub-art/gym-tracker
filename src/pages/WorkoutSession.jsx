@@ -68,7 +68,8 @@ function WorkoutSession({ session, participants, results, previousResults, saveS
         <div className="session-member-progress">
           {accepted.map((participant) => {
             const complete = exercises.filter((exercise) => savedResult(participant.userId, exercise.id)).length;
-            return <div key={participant.userId}><span>{complete === exercises.length ? "✓" : "○"}</span>{participant.name || participant.email}<small>{complete}/{exercises.length} exercises</small></div>;
+            const isReady = exercises.length > 0 && complete === exercises.length;
+            return <div key={participant.userId}><span>{isReady ? "✓" : "○"}</span><div>{participant.name || participant.email}<small>{complete}/{exercises.length} exercises</small></div><strong className={`session-ready-status ${isReady ? "ready" : ""}`}>{isReady ? "Ready" : "In progress"}</strong></div>;
           })}
         </div>
       </section>

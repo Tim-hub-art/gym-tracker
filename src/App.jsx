@@ -22,9 +22,33 @@ function createEmptySet(exercise) {
     : { weight: "", reps: "" };
 }
 
+function calculateRecord(exercise, previous = {}, sets = []) {
+  if (exercise?.tracking === "cardio") {
+    return {
+      longestDuration: Math.max(previous.longestDuration || 0, ...sets.map((set) => Number(set.duration) || 0)),
+      longestDistance: Math.max(previous.longestDistance || 0, ...sets.map((set) => Number(set.distance) || 0)),
+    };
+  }
+
+  return {
+    highestWeight: Math.max(previous.highestWeight || 0, ...sets.map((set) => Number(set.weight) || 0)),
+    mostReps: Math.max(previous.mostReps || 0, ...sets.map((set) => Number(set.reps) || 0)),
+    estimatedOneRepMax: Math.max(previous.estimatedOneRepMax || 0, ...sets.map((set) => (Number(set.weight) || 0) * (1 + (Number(set.reps) || 0) / 30))),
+    bestSetVolume: Math.max(previous.bestSetVolume || 0, ...sets.map((set) => (Number(set.weight) || 0) * (Number(set.reps) || 0))),
+  };
+}
+
+function calculateRecordsFromHistory(history) {
+  return history.reduce((records, entry) => {
+    const exercise = exerciseDatabase.find((item) => item.name === entry.exercise);
+    return { ...records, [entry.exercise]: calculateRecord(exercise, records[entry.exercise], entry.sets) };
+  }, {});
+}
+
 function App() {
   const [session, setSession] = useState(() => auth.getSession());
   const [syncError, setSyncError] = useState("");
+  const [achievementNotice, setAchievementNotice] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("Legs");
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -94,6 +118,7 @@ function App() {
         exercise: row.exercise_name,
         sets: row.sets,
         savedAt: row.saved_at,
+        sharedSessionId: row.shared_session_id,
       }));
       const weights = weightRows.map((row) => ({
         id: row.id,
@@ -117,6 +142,9 @@ function App() {
       setCustomTemplates(templates);
       setExerciseNotes({ [selectedUser]: notes });
       setSavedData({ [selectedUser]: { [workoutName]: latestExerciseData } });
+      const records = calculateRecordsFromHistory(history);
+      setPersonalRecords({ [selectedUser]: records });
+      localStorage.setItem("gymTrackerPersonalRecords", JSON.stringify({ [selectedUser]: records }));
       setSyncError("");
     } catch (error) {
       if (error.message.includes("JWT issued at future") && attempt < 3) {
@@ -390,14 +418,15 @@ function App() {
       },
     };
 
-    const newHistoryEntry = { id: crypto.randomUUID(), user: selectedUser, exercise: exerciseName, sets: sets.map((set) => ({ ...set })), savedAt: new Date().toISOString() };
+    const newHistoryEntry = { id: crypto.randomUUID(), user: selectedUser, exercise: exerciseName, sets: sets.map((set) => ({ ...set })), savedAt: new Date().toISOString(), sharedSessionId: null };
     const newHistory = [newHistoryEntry, ...workoutHistory];
 
     setSavedData(newData);
     setWorkoutHistory(newHistory);
     localStorage.setItem("gymTracker", JSON.stringify(newData));
     localStorage.setItem("gymTrackerHistory", JSON.stringify(newHistory));
-    updatePersonalRecords(exercise, sets);
+    const achievements = updatePersonalRecords(exercise, sets);
+    if (achievements.length) setAchievementNotice(`New personal record: ${achievements.join(" · ")}`);
 
     db.insert("workout_history", {
       user_id: session.user.id,
@@ -416,6 +445,7 @@ function App() {
       exercise: exercise.name,
       sets: sets.map((set) => ({ ...set })),
       savedAt,
+      sharedSessionId: null,
     };
     setWorkoutHistory((history) => [newHistoryEntry, ...history]);
     localStorage.setItem("gymTrackerHistory", JSON.stringify([newHistoryEntry, ...workoutHistory]));
@@ -434,19 +464,7 @@ function App() {
   function updatePersonalRecords(exercise, sets) {
     const previous = personalRecords[selectedUser]?.[exercise.name] || {};
     const isCardio = exercise.tracking === "cardio";
-    const nextRecord = isCardio
-      ? {
-          longestDuration: Math.max(previous.longestDuration || 0, ...sets.map((set) => Number(set.duration) || 0)),
-          longestDistance: Math.max(previous.longestDistance || 0, ...sets.map((set) => Number(set.distance) || 0)),
-        }
-      : {
-          highestWeight: Math.max(previous.highestWeight || 0, ...sets.map((set) => Number(set.weight) || 0)),
-          mostReps: Math.max(previous.mostReps || 0, ...sets.map((set) => Number(set.reps) || 0)),
-          bestSetVolume: Math.max(
-            previous.bestSetVolume || 0,
-            ...sets.map((set) => (Number(set.weight) || 0) * (Number(set.reps) || 0))
-          ),
-        };
+    const nextRecord = calculateRecord(exercise, previous, sets);
     const newRecords = {
       ...personalRecords,
       [selectedUser]: {
@@ -457,6 +475,12 @@ function App() {
 
     setPersonalRecords(newRecords);
     localStorage.setItem("gymTrackerPersonalRecords", JSON.stringify(newRecords));
+    if (isCardio) return [];
+    const achievements = [];
+    if (nextRecord.highestWeight > (previous.highestWeight || 0)) achievements.push(`${nextRecord.highestWeight} kg heaviest weight`);
+    if (nextRecord.mostReps > (previous.mostReps || 0)) achievements.push(`${nextRecord.mostReps} reps`);
+    if (nextRecord.estimatedOneRepMax > (previous.estimatedOneRepMax || 0)) achievements.push(`${Math.round(nextRecord.estimatedOneRepMax)} kg estimated 1RM`);
+    return achievements;
   }
 
   function updateCurrentExercise(workout, exercise, sets) {
@@ -801,6 +825,7 @@ function App() {
       </div>
 
       {syncError && <p className="sync-error">{syncError}</p>}
+      {achievementNotice && <button className="achievement-notice" onClick={() => setAchievementNotice("")}>🏆 {achievementNotice} <span>Dismiss</span></button>}
 
       <nav className="top-navigation" aria-label="Main navigation">
         <button className={currentScreen === "todaysWorkout" ? "active" : ""} onClick={() => setCurrentScreen("todaysWorkout")}>Workout</button>
@@ -861,6 +886,7 @@ function App() {
         <WorkoutHistory
           selectedUser={selectedUser}
           workoutHistory={workoutHistory}
+          bodyWeights={bodyWeights}
           removeHistoryEntry={removeHistoryEntry}
           savePastWorkout={savePastWorkout}
           setCurrentScreen={setCurrentScreen}
