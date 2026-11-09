@@ -6,13 +6,15 @@ function emptySet(exercise) {
   return exercise.tracking === "cardio" ? { duration: "", distance: "" } : { weight: "", reps: "" };
 }
 
-function WorkoutSession({ session, participants, results, previousResults, personalRecords, saveSessionResult, finishSession, updateSessionExercises, canEditExercises, setCurrentScreen }) {
+function WorkoutSession({ session, participants, results, previousResults, personalRecords, sessionNotes, addSessionNote, lastUpdated, saveSessionResult, finishSession, updateSessionExercises, canEditExercises, setCurrentScreen }) {
   const accepted = participants.filter((participant) => participant.status === "accepted");
   const [participantId, setParticipantId] = useState("");
   const exercises = useMemo(() => exerciseDatabase.filter((exercise) => session.exerciseIds.includes(exercise.id)), [session]);
   const [drafts, setDrafts] = useState({});
   const [collapsedExercises, setCollapsedExercises] = useState({});
   const [exerciseToAdd, setExerciseToAdd] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [showSummary, setShowSummary] = useState(false);
   const activeParticipantId = accepted.some((participant) => participant.userId === participantId)
     ? participantId
     : accepted[0]?.userId || "";
@@ -23,6 +25,30 @@ function WorkoutSession({ session, participants, results, previousResults, perso
   const totalItems = accepted.length * exercises.length;
   const savedItems = accepted.reduce((total, participant) => total + exercises.filter((exercise) => savedResult(participant.userId, exercise.id)).length, 0);
   const readyToFinish = totalItems > 0 && savedItems === totalItems;
+
+  function setCount(userId) {
+    return results
+      .filter((result) => result.participantId === userId)
+      .reduce((count, result) => count + (result.sets?.length || 0), 0);
+  }
+
+  function sessionStats(userId) {
+    const userResults = results.filter((result) => result.participantId === userId);
+    const completedExercises = userResults.filter((result) => result.sets?.length).length;
+    const totalSets = userResults.reduce((count, result) => count + (result.sets?.length || 0), 0);
+    const volume = userResults.reduce((total, result) => total + (result.sets || []).reduce((setTotal, set) => setTotal + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0), 0);
+    const newRecords = userResults.filter((result) => {
+      const exercise = exercises.find((item) => item.id === result.exerciseId);
+      return exercise && hasNewPersonalRecord(exercise, result.sets || [], personalRecord(userId, result.exerciseId));
+    }).length;
+    return { completedExercises, totalSets, volume, newRecords };
+  }
+
+  async function sendNote(event) {
+    event.preventDefault();
+    const didSend = await addSessionNote(session.id, noteDraft);
+    if (didSend) setNoteDraft("");
+  }
 
   function addExercise() {
     if (!exerciseToAdd) return;
@@ -113,6 +139,7 @@ function WorkoutSession({ session, participants, results, previousResults, perso
       <button onClick={() => setCurrentScreen("friends")}>Back to Friends</button>
       <h2>{session.title}</h2>
       <p>{isFinished ? "This session is complete and saved to everyone’s history." : "Record each participant’s results, then finish the session together."}</p>
+      {!isFinished && <p className="session-live-status"><span aria-hidden="true" />Live updates on{lastUpdated ? ` · updated ${new Date(lastUpdated).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</p>}
 
       <section className="card session-progress-card">
         <div className="session-progress-heading"><h3>Session progress</h3><strong>{savedItems}/{totalItems}</strong></div>
@@ -121,10 +148,21 @@ function WorkoutSession({ session, participants, results, previousResults, perso
           {accepted.map((participant) => {
             const complete = exercises.filter((exercise) => savedResult(participant.userId, exercise.id)).length;
             const isReady = exercises.length > 0 && complete === exercises.length;
-            return <div key={participant.userId}><span>{isReady ? "✓" : "○"}</span><div>{participant.name || participant.email}<small>{complete}/{exercises.length} exercises</small></div><strong className={`session-ready-status ${isReady ? "ready" : ""}`}>{isReady ? "Ready" : "In progress"}</strong></div>;
+            return <div key={participant.userId}><span>{isReady ? "✓" : "○"}</span><div>{participant.name || participant.email}<small>{complete}/{exercises.length} exercises · {setCount(participant.userId)} sets saved</small></div><strong className={`session-ready-status ${isReady ? "ready" : ""}`}>{isReady ? "Ready" : "In progress"}</strong></div>;
           })}
         </div>
       </section>
+
+      {!isFinished && <section className="card session-notes">
+        <div className="session-notes-heading"><h3>Session Notes</h3><span>{sessionNotes.length}</span></div>
+        <div className="session-note-list" aria-live="polite">
+          {sessionNotes.length ? sessionNotes.map((note) => <article key={note.id} className="session-note"><strong>{note.authorName || "Gym member"}</strong><p>{note.message}</p></article>) : <p className="form-help">Leave a note about setup, weights, or the next exercise.</p>}
+        </div>
+        <form className="session-note-form" onSubmit={sendNote}>
+          <input value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength="300" placeholder="Write a note for everyone…" aria-label="Session note" />
+          <button className="save-button" type="submit" disabled={!noteDraft.trim()}>Send</button>
+        </form>
+      </section>}
 
       {!isFinished && canEditExercises && <section className="card session-exercise-controls">
         <h3>Session exercises</h3>
@@ -151,8 +189,8 @@ function WorkoutSession({ session, participants, results, previousResults, perso
         const collapseKey = `${activeParticipantId}-${exercise.id}`;
         const isCollapsed = !isFinished && Boolean(collapsedExercises[collapseKey]);
         return <section className="card session-exercise" key={exercise.id}>
-          {isCollapsed ? <div className="collapsed-session-exercise"><div><h3>{exercise.name}</h3><p>Saved for {activePerson?.name || "participant"}</p></div><div className="collapsed-exercise-actions"><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id) ? "saved" : "not saved"}`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}</span>)}</div><button onClick={() => setCollapsedExercises((current) => ({ ...current, [collapseKey]: false }))}>Unfold / Edit</button></div></div> : <>
-          <div className="exercise-session-heading"><div className="session-exercise-identity">{exerciseImages[exercise.id] && <img className="session-machine-thumbnail" src={exerciseImages[exercise.id]} alt="" />}<div><h3>{exercise.name}</h3><p>Machine {exercise.machine ?? "N/A"}</p></div></div><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id) ? "saved" : "not saved"}`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}</span>)}</div></div>
+          {isCollapsed ? <div className="collapsed-session-exercise"><div><h3>{exercise.name}</h3><p>Saved for {activePerson?.name || "participant"}</p></div><div className="collapsed-exercise-actions"><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id)?.sets?.length || 0} sets saved`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}<small>{savedResult(participant.userId, exercise.id)?.sets?.length || 0}</small></span>)}</div><button onClick={() => setCollapsedExercises((current) => ({ ...current, [collapseKey]: false }))}>Unfold / Edit</button></div></div> : <>
+          <div className="exercise-session-heading"><div className="session-exercise-identity">{exerciseImages[exercise.id] && <img className="session-machine-thumbnail" src={exerciseImages[exercise.id]} alt="" />}<div><h3>{exercise.name}</h3><p>Machine {exercise.machine ?? "N/A"}</p></div></div><div className="exercise-member-status" aria-label={`Completion for ${exercise.name}`}>{accepted.map((participant) => <span key={participant.userId} title={`${participant.name || participant.email}: ${savedResult(participant.userId, exercise.id)?.sets?.length || 0} sets saved`}>{savedResult(participant.userId, exercise.id) ? "✓" : "○"}<small>{savedResult(participant.userId, exercise.id)?.sets?.length || 0}</small></span>)}</div></div>
           {!isFinished && canEditExercises && <button className="remove-session-exercise" onClick={() => removeExercise(exercise.id)}>Remove Exercise</button>}
           {!isFinished && <>
             <div className="session-previous-result">
@@ -178,7 +216,28 @@ function WorkoutSession({ session, participants, results, previousResults, perso
         </section>;
       })}
 
-      {!isFinished && <button className="finish-workout-button finish-session-button" onClick={() => finishSession(session)} disabled={!readyToFinish}>Finish Session & Save History</button>}
+      {!isFinished && showSummary && <section className="card session-summary">
+        <h3>Session Summary</h3>
+        <p>Everything is saved. Review each person before finishing the session.</p>
+        {accepted.map((participant) => {
+          const stats = sessionStats(participant.userId);
+          return <div className="session-summary-member" key={participant.userId}><strong>{participant.name || participant.email}</strong><span>{stats.completedExercises} exercises · {stats.totalSets} sets</span><span>{stats.volume.toLocaleString()} kg volume</span>{stats.newRecords > 0 && <em>🏆 {stats.newRecords} personal record{stats.newRecords === 1 ? "" : "s"}</em>}</div>;
+        })}
+      </section>}
+      {!isFinished && <button
+        className="finish-workout-button finish-session-button"
+        onClick={() => {
+          if (!readyToFinish) return;
+          if (!showSummary) {
+            setShowSummary(true);
+            return;
+          }
+          finishSession(session);
+        }}
+        disabled={!readyToFinish}
+      >
+        {!readyToFinish ? "Save every result to continue" : showSummary ? "Finish Session & Save History" : "Review Session Summary"}
+      </button>}
       {!isFinished && !readyToFinish && <p className="form-help">Save every exercise for every accepted participant to finish the session.</p>}
     </main>
   );

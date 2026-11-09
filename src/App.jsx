@@ -99,6 +99,8 @@ function App() {
   const [sessionResults, setSessionResults] = useState([]);
   const [sessionPreviousResults, setSessionPreviousResults] = useState([]);
   const [sessionPersonalRecords, setSessionPersonalRecords] = useState([]);
+  const [sessionNotes, setSessionNotes] = useState([]);
+  const [sessionLastUpdated, setSessionLastUpdated] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
@@ -293,10 +295,11 @@ function App() {
 
   async function openSession(workoutSession) {
     try {
-      const [resultRows, previousRows, recordRows] = await Promise.all([
+      const [resultRows, previousRows, recordRows, noteRows] = await Promise.all([
         db.select("workout_session_results", `&session_id=eq.${workoutSession.id}`),
         db.rpc("get_workout_session_previous_results", { target_session_id: workoutSession.id }),
         db.rpc("get_workout_session_personal_records", { target_session_id: workoutSession.id }),
+        db.select("workout_session_notes", `&session_id=eq.${workoutSession.id}&order=created_at.asc`),
       ]);
       setSessionResults(resultRows.map((result) => ({
         id: result.id,
@@ -321,12 +324,79 @@ function App() {
         longestDuration: Number(record.longest_duration) || 0,
         longestDistance: Number(record.longest_distance) || 0,
       })));
+      setSessionNotes(noteRows.map((note) => ({
+        id: note.id,
+        sessionId: note.session_id,
+        authorId: note.author_id,
+        authorName: note.author_name,
+        message: note.message,
+        createdAt: note.created_at,
+      })));
+      setSessionLastUpdated(new Date().toISOString());
       setSelectedSession(workoutSession);
       setCurrentScreen("workoutSession");
     } catch (error) {
       syncErrorMessage(error);
     }
   }
+
+  async function refreshSessionLiveData(sessionId) {
+    try {
+      const [resultRows, noteRows] = await Promise.all([
+        db.select("workout_session_results", `&session_id=eq.${sessionId}`),
+        db.select("workout_session_notes", `&session_id=eq.${sessionId}&order=created_at.asc`),
+      ]);
+      setSessionResults(resultRows.map((result) => ({
+        id: result.id,
+        sessionId: result.session_id,
+        participantId: result.participant_id,
+        exerciseId: result.exercise_id,
+        sets: result.sets,
+      })));
+      setSessionNotes(noteRows.map((note) => ({
+        id: note.id,
+        sessionId: note.session_id,
+        authorId: note.author_id,
+        authorName: note.author_name,
+        message: note.message,
+        createdAt: note.created_at,
+      })));
+      setSessionLastUpdated(new Date().toISOString());
+    } catch (error) {
+      syncErrorMessage(error, "Shared session updates could not refresh");
+    }
+  }
+
+  async function addSessionNote(sessionId, message) {
+    const trimmed = message.trim();
+    if (!trimmed) return false;
+    try {
+      const [saved] = await db.insert("workout_session_notes", {
+        session_id: sessionId,
+        author_id: session.user.id,
+        author_name: selectedUser,
+        message: trimmed,
+      });
+      setSessionNotes((notes) => [...notes, {
+        id: saved.id,
+        sessionId: saved.session_id,
+        authorId: saved.author_id,
+        authorName: saved.author_name,
+        message: saved.message,
+        createdAt: saved.created_at,
+      }]);
+      return true;
+    } catch (error) {
+      syncErrorMessage(error);
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    if (currentScreen !== "workoutSession" || !selectedSession?.id) return undefined;
+    const interval = window.setInterval(() => refreshSessionLiveData(selectedSession.id), 4000);
+    return () => window.clearInterval(interval);
+  }, [currentScreen, selectedSession?.id]);
 
   async function saveSessionResult(sessionId, participantId, exerciseId, sets) {
     try {
@@ -960,6 +1030,9 @@ function App() {
           results={sessionResults}
           previousResults={sessionPreviousResults}
           personalRecords={sessionPersonalRecords}
+          sessionNotes={sessionNotes}
+          addSessionNote={addSessionNote}
+          lastUpdated={sessionLastUpdated}
           saveSessionResult={saveSessionResult}
           finishSession={finishSession}
           updateSessionExercises={updateSessionExercises}
