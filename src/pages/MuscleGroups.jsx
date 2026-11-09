@@ -14,6 +14,13 @@ function MuscleGroups({ setCurrentScreen, setSelectedMuscleGroup }) {
         ✨ All Workouts
       </button>
 
+      <button
+        className="cable-tower-button"
+        onClick={() => setCurrentScreen("cableAttachments")}
+      >
+        🔗 Cable Tower
+      </button>
+
       {muscleGroups.map((group) => (
         <button
           key={group.id}

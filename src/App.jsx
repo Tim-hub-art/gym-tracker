@@ -4,6 +4,7 @@ import { exerciseDatabase } from "./data/exerciseDatabase";
 import { workoutTemplates } from "./data/workoutTemplates";
 import TodaysWorkout from "./pages/TodaysWorkout";
 import MuscleGroups from "./pages/MuscleGroups";
+import CableAttachments from "./pages/CableAttachments";
 import ExerciseSelection from "./pages/ExerciseSelection";
 import ExerciseWorkout from "./pages/ExerciseWorkout";
 import WorkoutHistory from "./pages/WorkoutHistory";
@@ -51,6 +52,7 @@ function App() {
   const [achievementNotice, setAchievementNotice] = useState("");
   const [authNotice, setAuthNotice] = useState("");
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState("Legs");
+  const [selectedCableAttachment, setSelectedCableAttachment] = useState("rope");
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [currentScreen, setCurrentScreen] = useState("todaysWorkout");
   const [todaysWorkout, setTodaysWorkout] = useState(() => {
@@ -870,9 +872,20 @@ function App() {
         />
       )}
 
+      {currentScreen === "cableAttachments" && (
+        <CableAttachments
+          setSelectedCableAttachment={(attachment) => {
+            setSelectedCableAttachment(attachment);
+            setSelectedMuscleGroup("Cable Tower");
+          }}
+          setCurrentScreen={setCurrentScreen}
+        />
+      )}
+
       {currentScreen === "exerciseSelection" && (
         <ExerciseSelection
           selectedMuscleGroup={selectedMuscleGroup}
+          selectedCableAttachment={selectedCableAttachment}
           addExerciseToWorkout={addExerciseToWorkout}
           openExercise={openExercise}
         />

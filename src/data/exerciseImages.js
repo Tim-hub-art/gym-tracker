@@ -21,6 +21,10 @@ import seatedRow from "../assets/exercise-machines/seated-row.png";
 import shoulderPress from "../assets/exercise-machines/shoulder-press.png";
 import treadmill from "../assets/exercise-machines/treadmill.png";
 import tricepExtension from "../assets/exercise-machines/tricep-extension.png";
+import cableRope from "../assets/exercise-machines/cable-rope.png";
+import cableFacePull from "../assets/exercise-machines/cable-face-pull.png";
+import cableSingleHandle from "../assets/exercise-machines/cable-single-handle.png";
+import cableStraightBar from "../assets/exercise-machines/cable-straight-bar.png";
 
 export const exerciseImages = {
   1: legPress,
@@ -46,4 +50,16 @@ export const exerciseImages = {
   21: exerciseBike,
   22: rowingMachine,
   25: elliptical,
+  26: cableRope,
+  27: cableFacePull,
+  28: cableRope,
+  29: cableRope,
+  30: cableStraightBar,
+  31: cableStraightBar,
+  32: cableSingleHandle,
+  33: cableSingleHandle,
+  34: cableSingleHandle,
+  35: cableSingleHandle,
+  36: cableSingleHandle,
+  37: cableSingleHandle,
 };
