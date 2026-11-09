@@ -96,6 +96,7 @@ function App() {
   const [sessionParticipants, setSessionParticipants] = useState([]);
   const [sessionResults, setSessionResults] = useState([]);
   const [sessionPreviousResults, setSessionPreviousResults] = useState([]);
+  const [sessionPersonalRecords, setSessionPersonalRecords] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef(null);
@@ -290,9 +291,10 @@ function App() {
 
   async function openSession(workoutSession) {
     try {
-      const [resultRows, previousRows] = await Promise.all([
+      const [resultRows, previousRows, recordRows] = await Promise.all([
         db.select("workout_session_results", `&session_id=eq.${workoutSession.id}`),
         db.rpc("get_workout_session_previous_results", { target_session_id: workoutSession.id }),
+        db.rpc("get_workout_session_personal_records", { target_session_id: workoutSession.id }),
       ]);
       setSessionResults(resultRows.map((result) => ({
         id: result.id,
@@ -306,6 +308,16 @@ function App() {
         exerciseId: result.exercise_id,
         sets: result.sets,
         savedAt: result.saved_at,
+      })));
+      setSessionPersonalRecords(recordRows.map((record) => ({
+        participantId: record.participant_id,
+        exerciseId: record.exercise_id,
+        highestWeight: Number(record.highest_weight) || 0,
+        mostReps: Number(record.most_reps) || 0,
+        estimatedOneRepMax: Number(record.estimated_one_rep_max) || 0,
+        bestSetVolume: Number(record.best_set_volume) || 0,
+        longestDuration: Number(record.longest_duration) || 0,
+        longestDistance: Number(record.longest_distance) || 0,
       })));
       setSelectedSession(workoutSession);
       setCurrentScreen("workoutSession");
@@ -934,6 +946,7 @@ function App() {
           participants={sessionParticipants.filter((participant) => participant.sessionId === selectedSession.id)}
           results={sessionResults}
           previousResults={sessionPreviousResults}
+          personalRecords={sessionPersonalRecords}
           saveSessionResult={saveSessionResult}
           finishSession={finishSession}
           updateSessionExercises={updateSessionExercises}

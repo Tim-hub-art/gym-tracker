@@ -372,6 +372,16 @@ textarea:focus {
 .exercise-details,
 .personal-record-card { margin: 16px 0; }
 
+.session-personal-record {
+  margin: 14px 0;
+}
+
+.session-record-highlight {
+  color: var(--accent);
+  font-weight: 700;
+  margin: 12px 0;
+}
+
 .workout-card {
   align-items: center;
   display: flex;
